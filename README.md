@@ -21,7 +21,7 @@ The ESP32 and ESP8266 include a custom SD card library so the Arduino SD library
 # Hardware Connection
 SD cards can be connected to the SPI bus found on most Arduino microcontrollers, or the SDMMC bus found on a small number of devices such as the ESP32. 
 
-SD cards operate at 3.3&nbsp;V so you'll need a level shifter such as the [SparkFun microSD shield](https://www.sparkfun.com/products/12761)  if your Arduino operates at 5&nbsp;V. Otherwise you can connect the SD card directly to the Arduino, the diagram below shows the SD card pinout. ArtsyEngineering has a good video on [connecting SD cards to the ESP32](https://www.youtube.com/watch?v=e1xOgZsnAuw). 
+SD cards operate at 3.3&nbsp;V so you'll need a level shifter such as the [SparkFun microSD shield](https://www.sparkfun.com/products/12761)  if your Arduino operates at 5&nbsp;V. Otherwise you can connect the SD card directly to the Arduino, the diagram below shows the SD card pinout. ArtsyEngineering has a good video on [connecting SD cards to the ESP32](https://www.youtube.com/watch?v=e1xOgZsnAuw). The ESP32's SDMMC bus works with both 1-bit and 4-bit connections. The 4-bit interface provides a roughly 20% improvement in speed over the 1-bit interface at the cost of two extra pins (data 3 and 4 are not required for the 1-bit interface). 
 
 ![SD Card Connections](documentation/images/SDCardConnections.png)
 
