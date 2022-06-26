@@ -3,6 +3,10 @@
 *  This example demonstrates use of a file manager that can be used
 *  to manage files on an ESP32 device using the SDMMC SD card interface 
 *  and MegunoLink's Device File Transfer visualizer.
+*  
+*  Note: currently only supported for ESP32 devices, the only device
+*  we know of that supports the SD MMC interface. For a hookup guide,
+*  see: https://www.youtube.com/watch?v=e1xOgZsnAuw
 *
 *  Program an Arduino equipped with an
 *  SD card and open the "Device file transfer.mplz" MegunoLink 
@@ -34,7 +38,17 @@ SDMMCFileManager FileManager;
 // Initialize the device's SD card. 
 void InitSDCard()
 {
-  if (SD_MMC.begin())
+#if defined(ARDUINO_ARCH_ESP32)
+  // Many ESP32 boards need a pullup on the Data0Pin for
+  // SD MMC interface. Implement with internal pullup. 
+  const uint8_t Data0Pin = 2; 
+  pinMode(Data0Pin, INPUT_PULLUP);
+  delay(100);
+#endif
+  
+  const char MountPoint = "/sdcard";
+  const bool OneBitMode = true; 
+  if (SD_MMC.begin(MountPoint, OneBitMode))
   {
     uint8_t uCardType = SD_MMC.cardType();
     if (uCardType == CARD_NONE)

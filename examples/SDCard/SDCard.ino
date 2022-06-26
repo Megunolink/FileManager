@@ -6,6 +6,11 @@
  *  SD card and open the "Device file transfer.mplz" MegunoLink
  *  project file in this sketch's project folder to send and receive
  *  files to the SD card.
+ * 
+ *  Note: although SD cards are compatible with the SPI interface they
+ *        don't always play nicely with other devices on the same bus.
+ *        It is usually better to place the SD card on a dedicated SPI
+ *        bus or use a different interface (e.g., SD MMC). 
  *
  *  You will need:
  *    - MegunoLink's library for Arduino
