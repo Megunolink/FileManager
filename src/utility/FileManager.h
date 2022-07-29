@@ -13,6 +13,7 @@ namespace MLP
 {
   enum class FileManagerOptions
   {
+    DisableDeletion = 0,
     AllowFileDeletion = 1,
     AllowClearCard = 2,
     AllowDeletion = AllowFileDeletion | AllowClearCard,
