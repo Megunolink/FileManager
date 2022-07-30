@@ -8,62 +8,50 @@
 
 #include "FS.h"
 #include "SD_MMC.h"
-#include "SDFileManager.h"
 
-class SDMMCFileManager
-{
-};
-
+#include "utility/FileManager.h"
 #include "utility/FileSystemWrapper.h"
 
-class SDMMCFileSystemWrapper : public FileSystemWrapper
+class SDMMCFileManager : protected FileSystemWrapper, public MLP::FileManager
 {
 public:
-  SDMMCFileSystemWrapper(const char *pchRootPath = nullptr)
-      : FileSystemWrapper(pchRootPath)
+  SDMMCFileManager(const char *pchRootPath = nullptr)
+    : FileSystemWrapper(pchRootPath), MLP::FileManager(*(static_cast<FileSystemWrapper *>(this)))
   {
   }
 
-  virtual bool DeleteFile(const char *pchPath) override
-  {
-    FixedStringBuffer<m_nMaxPathLength> PathBuffer;
-    CompletePath(PathBuffer, pchPath);
-    return SD_MMC.remove(PathBuffer.c_str());
-  }
+  using FileSystemWrapper::Process;
 
 protected:
-
-  virtual bool FileExists(const char *pchPath) override { return SD.exists(pchPath); }
-
-  virtual File OpenFile(const char *pchPath, bool bWriteable, bool bTruncate) override
+  virtual bool DeleteFile(const char *pchPath) override
   {
-    FixedStringBuffer<m_nMaxPathLength> FullPath;
-    CompletePath(FullPath, pchPath);
+    return SD_MMC.remove(pchPath);
+  }
 
-    if (bTruncate)
-    {
-      SD_MMC.remove(FullPath.c_str());
-    }
+  virtual bool FileExists(const char *pchPath) override
+  {
+    return SD_MMC.exists(pchPath);
+  }
 
-  #if defined(ARDUINO_ARCH_ESP32)
+  virtual File OpenFile(const char *pchFullPath, bool bWriteable, bool bTruncate)
+  {
+#if defined(ARDUINO_ARCH_ESP32)
     // work around for bug: https://esp32.com/viewtopic.php?f=14&t=8060
-    bool bCreate = bWriteable && !FileExists(FullPath.c_str());
-    File hFile = SD_MMC.open(FullPath.c_str(), bWriteable ? FILE_APPEND : FILE_READ);
+    bool bCreate = bWriteable && !FileExists(pchFullPath);
+    File hFile = SD_MMC.open(pchFullPath, bWriteable ? FILE_APPEND : FILE_READ);
     if (hFile && bCreate)
     {
       // close and re-open so that file size is correct.
       hFile.close();
-      hFile = SD_MMC.open(FullPath.c_str(), bWriteable ? FILE_APPEND : FILE_READ);
+      hFile = SD_MMC.open(pchFullPath, bWriteable ? FILE_APPEND : FILE_READ);
     }
     return hFile;
 
-  #else
-    File hFile = SD_MMC.open(FullPath.c_str(), bWriteable ? FILE_APPEND : FILE_READ);
-  #endif
-
-
-    return hFile;
+#else
+    return SD_MMC.open(pchFullPath, bWriteable ? FILE_WRITE : FILE_READ);
+#endif
   }
+
 };
 
 #endif

@@ -4,40 +4,49 @@
 
 #pragma once
 
-#include "utility/FileManager.h"
-#include "FixedStringBuffer.h"
-#include "IFileManagerFileSystem.h"
-
 #include <SD.h>
 
-class SDFileManager : public MLP::FileManager
+#include "utility/FileManager.h"
+#include "utility/FileSystemWrapper.h"
+
+class SDFileManager : protected FileSystemWrapper, public MLP::FileManager
 {
-protected:
-  IFileManagerFileSystem &m_rIFileSystem;
-
-  // Maximum block size for sending file content. Should be a multiple of
-  // 3 for best performance. 
-  static const int m_nMaxBlockToSend = 510;
-
 public:
-  SDFileManager(IFileManagerFileSystem &m_rIFileSystem);
+  SDFileManager(const char *pchRootPath = nullptr)
+    : FileSystemWrapper(pchRootPath), MLP::FileManager(*(static_cast<FileSystemWrapper *>(this)))
+  {
+  }
 
-  void Process();
-
-protected:
-  virtual DFTResult EnumerateFiles(DeviceFileTransfer &dft) override;
-  virtual DFTResult SendFileContent(DeviceFileTransfer &dft, const char *pchPath, uint32_t uFirstByte) override;
-  virtual DFTResult ReceiveFileContent(DeviceFileTransfer &dft, const char *pchPath, uint32_t uFirstByte, const char* pchBase64FileData) override;
-  virtual void TransferComplete(const char *pchPath) override;
-
-  virtual DFTResult DeleteFile(const char *pchPath) override;
-  virtual DFTResult ClearAllFiles() override;
+  using FileSystemWrapper::Process;
 
 protected:
-  virtual File OpenFile(const char* pchPath, bool bWriteable, bool bTruncate);
-  File OpenFileCached(const char* pchPath, bool bWriteable, bool bTruncate);
-  time_t GetLastWriteTime(File &hFile);
-  void CloseCachedFile(const char *pchPath);
-  bool FileExists(const char* pchPath);
 
+  virtual bool DeleteFile(const char *pchPath) override
+  {
+    return SD.remove(pchPath);
+  }
+
+  virtual bool FileExists(const char *pchPath) override
+  {
+    return SD.exists(pchPath);
+  }
+
+  virtual File OpenFile(const char *pchFullPath, bool bWriteable, bool bTruncate)
+  {
+#if defined(ARDUINO_ARCH_ESP32)
+    // work around for bug: https://esp32.com/viewtopic.php?f=14&t=8060
+    bool bCreate = bWriteable && !FileExists(pchFullPath);
+    File hFile = SD.open(pchFullPath, bWriteable ? FILE_APPEND : FILE_READ);
+    if (hFile && bCreate)
+    {
+      // close and re-open so that file size is correct.
+      hFile.close();
+      hFile = SD.open(pchFullPath, bWriteable ? FILE_APPEND : FILE_READ);
+    }
+    return hFile;
+
+#else
+    return SD.open(pchFullPath, bWriteable ? FILE_WRITE : FILE_READ);
+#endif
+  }
 };

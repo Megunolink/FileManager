@@ -97,27 +97,31 @@ public:
     return Result;
   }
 
-  virtual DFTResult ReceiveFileContent(const char *pchPath, uint32_t uFirstByte, const char *pchBase64Data, DeviceFileTransfer &dft) override
+  virtual DFTResult ReceiveFileContent(const char *pchRelativePath, uint32_t uFirstByte, const char *pchBase64Data, DeviceFileTransfer &dft) override
   {
+    FixedStringBuffer<m_nMaxPathLength> FullPath;
+    CompletePath(FullPath, pchRelativePath);
+
     if (uFirstByte == 0)
     {
       if (m_CachedFile)
       {
         m_CachedFile.close();
       }
-      if (FileExists(pchPath))
+
+      if (FileExists(FullPath.c_str()))
       {
-        DeleteFile(pchPath);
+        DeleteFile(FullPath.c_str());
       }
     }
 
-    File hFile = OpenFileCached(pchPath, true, uFirstByte == 0);
+    File hFile = OpenFileCached(FullPath.c_str(), true, uFirstByte == 0);
     if (hFile)
     {
       if (uFirstByte == (uint32_t)hFile.size())
       {
         int nWritten = DecodeFromBase64(hFile, pchBase64Data);
-        dft.FileReceiveResult(pchPath, uFirstByte, nWritten, nWritten == DECODE_BAD_DATA ? DFTResult::BadData : DFTResult::Ok);
+        dft.FileReceiveResult(pchRelativePath, uFirstByte, nWritten, nWritten == DECODE_BAD_DATA ? DFTResult::BadData : DFTResult::Ok);
 #if defined(ARDUINO_ARCH_ESP32)
         hFile.flush(); // Without flush, hFile.size() reports the wrong value on ESP32.
 #endif
@@ -131,38 +135,41 @@ public:
         Serial.print(F(", got: "));
         Serial.println(uFirstByte);
 #endif
-        dft.FileReceiveResult(pchPath, uFirstByte, 0, DFTResult::BadDataBlockAddress);
+        dft.FileReceiveResult(pchRelativePath, uFirstByte, 0, DFTResult::BadDataBlockAddress);
         return DFTResult::BadDataBlockAddress;
       }
     }
     else
     {
-      dft.FileReceiveResult(pchPath, uFirstByte, 0, DFTResult::FileOpenFailed);
+      dft.FileReceiveResult(pchRelativePath, uFirstByte, 0, DFTResult::FileOpenFailed);
       return DFTResult::FileOpenFailed;
     }
   }
 
-  virtual void TransferComplete(const char *pchPath) override
+  virtual void TransferComplete(const char *pchRelativePath) override
   {
-    CloseCachedFile(pchPath);
+    CloseCachedFile(pchRelativePath);
   }
 
-  virtual DFTResult SendFileContent(const char *pchPath, uint32_t uFirstByte, uint32_t uBlockSize, DeviceFileTransfer &dft) override
+  virtual DFTResult SendFileContent(const char *pchRelativePath, uint32_t uFirstByte, uint32_t uBlockSize, DeviceFileTransfer &dft) override
   {
-    File hFile = OpenFileCached(pchPath, false, false);
+    FixedStringBuffer<m_nMaxPathLength> FullPath;
+    CompletePath(FullPath, pchRelativePath);
+
+    File hFile = OpenFileCached(FullPath.c_str(), false, false);
     if (hFile)
     {
       if (hFile.seek(uFirstByte))
       {
-        dft.SendFileBytes(pchPath, hFile, uFirstByte, uBlockSize);
+        dft.SendFileBytes(pchRelativePath, hFile, uFirstByte, uBlockSize);
         return DFTResult::Ok;
       }
 
-      dft.SendFileBytes(pchPath, uFirstByte, DFTResult::SeekFailed);
+      dft.SendFileBytes(pchRelativePath, uFirstByte, DFTResult::SeekFailed);
       return DFTResult::SeekFailed;
     }
 
-    dft.SendFileBytes(pchPath, uFirstByte, DFTResult::FileOpenFailed);
+    dft.SendFileBytes(pchRelativePath, uFirstByte, DFTResult::FileOpenFailed);
     return DFTResult::FileOpenFailed;
   }
 
@@ -199,11 +206,11 @@ public:
   }
 
 protected:
-  virtual bool FileExists(const char *pchPath) = 0;
+  virtual bool FileExists(const char *pchFullPath) = 0;
 
-  virtual File OpenFile(const char *pchPath, bool bWriteable, bool bTruncate) = 0;
+  virtual File OpenFile(const char *pchFullPath, bool bWriteable, bool bTruncate) = 0;
 
-  File OpenFileCached(const char *pchPath, bool bWriteable, bool bTruncate)
+  File OpenFileCached(const char *pchFullPath, bool bWriteable, bool bTruncate)
   {
     if (bWriteable && bTruncate && m_CachedFile)
     {
@@ -211,7 +218,7 @@ protected:
     }
     else if (m_CachedFile)
     {
-      if (strcmp(pchPath, m_CachedFile.name()) == 0 && m_bCachedIsWriteable == bWriteable)
+      if (strcmp(pchFullPath, m_CachedFile.name()) == 0 && m_bCachedIsWriteable == bWriteable)
       {
         m_tmrCloseCache.Reset();
         return m_CachedFile;
@@ -222,16 +229,17 @@ protected:
       }
     }
 
-    m_CachedFile = OpenFile(pchPath, bWriteable, bTruncate);
+    m_CachedFile = OpenFile(pchFullPath, bWriteable, bTruncate);
     m_tmrCloseCache.Reset();
     m_bCachedIsWriteable = bWriteable;
 
     return m_CachedFile;
   }
 
-  void CloseCachedFile(const char *pchPath)
+  void CloseCachedFile(const char *pchRelativePath)
   {
-    if (m_CachedFile && strcmp(pchPath, m_CachedFile.name()) == 0)
+    return;
+    if (m_CachedFile && strcmp(pchRelativePath, m_CachedFile.name()) == 0)
     {
       m_CachedFile.close();
     }
