@@ -9,7 +9,7 @@
 #include "utility/FileManager.h"
 #include "utility/FileSystemWrapper.h"
 
-class SDFileManager : protected FileSystemWrapper, public MLP::FileManager
+class SDFileManager : protected FileSystemWrapper<File>, public MLP::FileManager
 {
 public:
   SDFileManager(const char *pchRootPath = nullptr)
@@ -21,14 +21,14 @@ public:
 
 protected:
 
-  virtual bool DeleteFile(const char *pchPath) override
+  virtual bool RemoveFileAtPath(const char *pchFullPath) override
   {
-    return SD.remove(pchPath);
+    return SD.remove(pchFullPath);
   }
 
-  virtual bool FileExists(const char *pchPath) override
+  virtual bool FileExists(const char *pchFullPath) override
   {
-    return SD.exists(pchPath);
+    return SD.exists(pchFullPath);
   }
 
   virtual File OpenFile(const char *pchFullPath, bool bWriteable, bool bTruncate)

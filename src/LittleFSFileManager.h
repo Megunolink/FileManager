@@ -13,7 +13,7 @@
 #include "utility/FileSystemWrapper.h"
 #include "ArduinoTimer.h"
 
-class LittleFSFileManager : protected FileSystemWrapper, public MLP::FileManager
+class LittleFSFileManager : protected FileSystemWrapper<File>, public MLP::FileManager
 {
 public:
   LittleFSFileManager(const char* pchRootPath = nullptr)
@@ -24,21 +24,21 @@ public:
   using FileSystemWrapper::Process;
 
 protected:
-  virtual bool DeleteFile(const char *pchPath) override
+  virtual bool RemoveFileAtPath(const char *pchFullPath) override
   {
-    return LittleFS.remove(pchPath);
+    return LittleFS.remove(pchFullPath);
   }
 
-  virtual bool FileExists(const char *pchPath) override
+  virtual bool FileExists(const char *pchFullPath) override
   {
-    return LittleFS.exists(pchPath);
+    return LittleFS.exists(pchFullPath);
   }
 
-  virtual File OpenFile(const char *pchFullPath, bool bWriteable, bool bTruncate)
+  virtual File OpenFile(const char *pchFullPath, bool bWriteable, bool bCreate)
   {
 #if defined(ARDUINO_ARCH_ESP32)
 
-  return LittleFS.open(pchFullPath, bWriteable ? FILE_APPEND : FILE_READ, bTruncate);
+  return LittleFS.open(pchFullPath, bWriteable ? FILE_APPEND : FILE_READ, bCreate);
 
 #elif defined(ARDUINO_ARCH_ESP8266)
 

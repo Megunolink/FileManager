@@ -9,8 +9,7 @@
 #include "FixedStringBuffer.h"
 #include "Formatting.h"
 
-#include "SD.h" // for File definition.
-
+template <typename TFile>
 class FileSystemWrapper : public IFileManagerFileSystem
 {
 protected:
@@ -18,7 +17,7 @@ protected:
   // open to improve performance. File is closed when
   // MegunoLink reports transfer is complete and/or after
   // time-out.
-  File m_CachedFile;
+  TFile m_CachedFile;
 
   // True if the cached file is opened for writing; false if read-only.
   bool m_bCachedIsWriteable;
@@ -64,10 +63,9 @@ public:
     }
   }
 
-
   virtual DFTResult ListFiles(DeviceFileTransfer &dft) override
   {
-    File hRoot = OpenFile(m_achRootPath, false, false);
+    TFile hRoot = OpenFile(m_achRootPath, false, false);
     if (!hRoot)
     {
       Serial.print(F("Bad root path: "));
@@ -78,11 +76,11 @@ public:
     DFTResult Result = DFTResult::Ok;
     if (hRoot.isDirectory())
     {
-      while (File hFile = hRoot.openNextFile())
+      while (TFile hFile = hRoot.openNextFile())
       {
         if (!hFile.isDirectory())
         {
-          dft.SendFileInfo(hFile.name(), hFile.size(), GetLastWriteTime(hFile));
+          dft.SendFileInfo(GetFilename(hFile), hFile.size(), GetLastWriteTime(hFile));
         }
         hFile.close();
       }
@@ -102,7 +100,8 @@ public:
     FixedStringBuffer<m_nMaxPathLength> FullPath;
     CompletePath(FullPath, pchRelativePath);
 
-    if (uFirstByte == 0)
+    bool bCreateNew = uFirstByte == 0;
+    if (bCreateNew)
     {
       if (m_CachedFile)
       {
@@ -111,11 +110,11 @@ public:
 
       if (FileExists(FullPath.c_str()))
       {
-        DeleteFile(FullPath.c_str());
+        RemoveFileAtPath(FullPath.c_str());
       }
     }
 
-    File hFile = OpenFileCached(FullPath.c_str(), true, uFirstByte == 0);
+    TFile& hFile = OpenFileCached(FullPath.c_str(), true, bCreateNew);
     if (hFile)
     {
       if (uFirstByte == (uint32_t)hFile.size())
@@ -129,7 +128,7 @@ public:
       }
       else
       {
-#if 1
+#if 0
         Serial.print(F("Bad addr. Expected: "));
         Serial.print((uint32_t)hFile.size());
         Serial.print(F(", got: "));
@@ -156,7 +155,7 @@ public:
     FixedStringBuffer<m_nMaxPathLength> FullPath;
     CompletePath(FullPath, pchRelativePath);
 
-    File hFile = OpenFileCached(FullPath.c_str(), false, false);
+    TFile& hFile = OpenFileCached(FullPath.c_str(), false, false);
     if (hFile)
     {
       if (hFile.seek(uFirstByte))
@@ -175,20 +174,22 @@ public:
 
   virtual DFTResult ClearAllFiles() override
   {
-    File hRoot = OpenFile(m_achRootPath, false, false);
+    TFile hRoot = OpenFile(m_achRootPath, false, false);
     if (!hRoot)
     {
       return DFTResult::BadRoot;
     }
 
     DFTResult Result = DFTResult::Ok;
+    FixedStringBuffer<m_nMaxPathLength> FullPath;
     if (hRoot.isDirectory())
     {
-      while (File hFile = hRoot.openNextFile())
+      while (TFile hFile = hRoot.openNextFile())
       {
         if (!hFile.isDirectory())
         {
-          if (!DeleteFile(hFile.name()))
+          CompletePath(FullPath, GetFilename(hFile));
+          if (!RemoveFileAtPath(FullPath.c_str()))
           {
             Result = DFTResult::DeleteFileFailed;
           }
@@ -206,19 +207,39 @@ public:
   }
 
 protected:
+  virtual bool RemoveFileAtPath(const char* pchFullPath) = 0;
   virtual bool FileExists(const char *pchFullPath) = 0;
+  virtual TFile OpenFile(const char *pchFullPath, bool bWriteable, bool bTruncate) = 0;
 
-  virtual File OpenFile(const char *pchFullPath, bool bWriteable, bool bTruncate) = 0;
-
-  File OpenFileCached(const char *pchFullPath, bool bWriteable, bool bTruncate)
+  virtual bool DeleteFile(const char*pchFilename) override
   {
-    if (bWriteable && bTruncate && m_CachedFile)
+    FixedStringBuffer<m_nMaxPathLength> FullPath;
+    CompletePath(FullPath, pchFilename);
+    return RemoveFileAtPath(FullPath.c_str());
+  }
+
+  virtual const char *GetFilename(TFile hFile)
+  {
+    // SdFat library has special accessors for retrieving filename.
+    // Must override in derived classes.
+#if !defined(SD_FAT_VERSION)
+    return hFile.name();
+#else
+    return nullptr;
+#endif
+  };
+
+  TFile &OpenFileCached(const char *pchFullPath, bool bWriteable, bool bCreate)
+  {
+    if (bWriteable && bCreate && m_CachedFile)
     {
       m_CachedFile.close();
     }
     else if (m_CachedFile)
     {
-      if (strcmp(pchFullPath, m_CachedFile.name()) == 0 && m_bCachedIsWriteable == bWriteable)
+      FixedStringBuffer<m_nMaxPathLength> FullCacheFilePath;
+      CompletePath(FullCacheFilePath, GetFilename(m_CachedFile));
+      if (strcmp(pchFullPath, FullCacheFilePath.c_str()) == 0 && m_bCachedIsWriteable == bWriteable)
       {
         m_tmrCloseCache.Reset();
         return m_CachedFile;
@@ -229,7 +250,7 @@ protected:
       }
     }
 
-    m_CachedFile = OpenFile(pchFullPath, bWriteable, bTruncate);
+    m_CachedFile = OpenFile(pchFullPath, bWriteable, bCreate);
     m_tmrCloseCache.Reset();
     m_bCachedIsWriteable = bWriteable;
 
@@ -238,26 +259,36 @@ protected:
 
   void CloseCachedFile(const char *pchRelativePath)
   {
-    return;
-    if (m_CachedFile && strcmp(pchRelativePath, m_CachedFile.name()) == 0)
+    if (m_CachedFile)
     {
-      m_CachedFile.close();
+      FixedStringBuffer<m_nMaxPathLength> FullPath;
+      CompletePath(FullPath, pchRelativePath);
+
+      FixedStringBuffer<m_nMaxPathLength> FullCacheFilePath;
+      CompletePath(FullCacheFilePath, GetFilename(m_CachedFile));
+
+      if (strcmp(FullPath.c_str(), FullCacheFilePath.c_str()) == 0)
+      {
+        m_CachedFile.close();
+      }
     }
   }
 
-
   void CompletePath(FixedStringPrint &rDestination, const char *pchPath)
   {
+    rDestination.begin();
     rDestination.print(m_achRootPath);
     rDestination.print(pchPath);
   }
 
-  time_t GetLastWriteTime(File &hFile)
+  time_t GetLastWriteTime(TFile &hFile)
   {
-#if defined(ARDUINO_ARCH_ESP32)
+    // Only ESP32 SD card library (and not the SD fat library) supports
+    // retrieving write time as a time_t. 
+#if defined(ARDUINO_ARCH_ESP32) && !defined(SD_FAT_VERSION)
     return hFile.getLastWrite();
 #else
     return 0; // unsupported
 #endif
-  }  
+  }
 };
