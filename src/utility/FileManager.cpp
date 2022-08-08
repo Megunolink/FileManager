@@ -11,8 +11,9 @@ const char Cmd_DeleteAllFiles = 'x';
 const char Cmd_TransferComplete = '.';
 const char Cmd_Unknown = '*';
 
-FileManager::FileManager(FileManagerOptions fmo)
+FileManager::FileManager(IFileManagerFileSystem &rFileSystem, FileManagerOptions fmo)
     : CommandModule(F("FM"))
+    , m_rFileSystem(rFileSystem)
 {
   m_Options = fmo;
 }
@@ -60,7 +61,7 @@ void FileManager::SetOptions(FileManagerOptions opt)
 void FileManager::HandleListFiles(CommandParameter &p)
 {
   DeviceFileTransfer dft(p.Response);
-  DFTResult Result = EnumerateFiles(dft);
+  DFTResult Result = m_rFileSystem.ListFiles(dft);
   ReportFailures(dft, Cmd_ListFiles, Result);
 }
 
@@ -69,7 +70,7 @@ void FileManager::HandleGetFileContent(CommandParameter &p)
   uint32_t uFirstByte = p.NextParameterAsUnsignedLong(0);
   const char *pchFile = p.RemainingParameters();
   DeviceFileTransfer dft(p.Response);
-  SendFileContent(dft, pchFile, uFirstByte);
+  m_rFileSystem.SendFileContent(pchFile, uFirstByte, m_nMaxBlockToSend, dft);
 }
 
 void FileManager::HandlePutFileContent(CommandParameter &p)
@@ -83,7 +84,7 @@ void FileManager::HandlePutFileContent(CommandParameter &p)
   uint16_t uActualChecksum = CalculateChecksumFromBase64(pchBase64Data);
   if (uActualChecksum == uExpectedChecksum)
   {
-    ReceiveFileContent(dft, pchFile, lAddress, pchBase64Data);
+    m_rFileSystem.ReceiveFileContent(pchFile, lAddress, pchBase64Data, dft);
   }
   else
   {
@@ -94,7 +95,7 @@ void FileManager::HandlePutFileContent(CommandParameter &p)
 void FileManager::HandleTransferComplete(CommandParameter &p)
 {
   const char *pchPath = p.RemainingParameters();
-  TransferComplete(pchPath);
+  m_rFileSystem.TransferComplete(pchPath);
 }
 
 void FileManager::HandleDeleteFile(CommandParameter &p)
@@ -105,7 +106,7 @@ void FileManager::HandleDeleteFile(CommandParameter &p)
   DeviceFileTransfer dft(p.Response);
   if (IsOptionEnabled(FileManagerOptions::AllowFileDeletion))
   {
-    Result = DeleteFile(pchPath);
+    Result = m_rFileSystem.DeleteFile(pchPath) ? DFTResult::Ok : DFTResult::DeleteFileFailed;
   }
   else
   {
@@ -123,7 +124,7 @@ void FileManager::HandleDeleteAllFiles(CommandParameter &p)
   DeviceFileTransfer dft(p.Response);
   if (IsOptionEnabled(FileManagerOptions::AllowClearCard))
   {
-    Result = ClearAllFiles();
+    Result = m_rFileSystem.ClearAllFiles();
   }
   else
   {
