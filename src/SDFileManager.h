@@ -4,63 +4,49 @@
 
 #pragma once
 
-#include "utility/FileManager.h"
-#include "ArduinoTimer.h"
-#include "FixedStringBuffer.h"
-
 #include <SD.h>
 
-class SDFileManager : public MLP::FileManager
+#include "utility/FileManager.h"
+#include "utility/FileSystemWrapper.h"
+
+class SDFileManager : protected FileSystemWrapper<File>, public MLP::FileManager
 {
-protected:
-  // File we are currently working to send/receive. Kept
-  // open to improve performance. File is closed when 
-  // MegunoLink reports transfer is complete and/or after
-  // time-out. 
-  File m_CachedFile;
-
-  // True if the cached file is opened for writing; false if read-only. 
-  bool m_bCachedIsWriteable;
-
-  // Time since cached file was last used. Closed after not used for a while. 
-  ArduinoTimer m_tmrCloseCache;
-
-  // Maximum time to keep the cached file open if it isn't being used. 
-  static const int m_nCacheTimeout = 3000; // ms. 
-
-  // Maximum number of characters for root path (including null terminator). 
-  static const int m_nMaxRootPath = 9;
-
-  // Maximum length of file path combined with root path. 
-  static const int m_nMaxPathLength = m_nMaxRootPath + 15;
-
-  // Root path for the folder we manage. 
-  char m_achRootPath[m_nMaxRootPath];
-
-  // Maximum block size for sending file content. Should be a multiple of
-  // 3 for best performance. 
-  static const int m_nMaxBlockToSend = 510;
-
 public:
-  SDFileManager(const char* pchRootPath = nullptr);
+  SDFileManager(const char *pchRootPath = nullptr)
+    : FileSystemWrapper(pchRootPath), MLP::FileManager(*(static_cast<FileSystemWrapper *>(this)))
+  {
+  }
 
-  void Process();
-
-protected:
-  virtual DFTResult EnumerateFiles(DeviceFileTransfer &dft) override;
-  virtual DFTResult SendFileContent(DeviceFileTransfer &dft, const char *pchPath, uint32_t uFirstByte) override;
-  virtual DFTResult ReceiveFileContent(DeviceFileTransfer &dft, const char *pchPath, uint32_t uFirstByte, const char* pchBase64FileData) override;
-  virtual void TransferComplete(const char *pchPath) override;
-
-  virtual DFTResult DeleteFile(const char *pchPath) override;
-  virtual DFTResult ClearAllFiles() override;
+  using FileSystemWrapper::Process;
 
 protected:
-  virtual File OpenFile(const char* pchPath, bool bWriteable, bool bTruncate);
-  File OpenFileCached(const char* pchPath, bool bWriteable, bool bTruncate);
-  time_t GetLastWriteTime(File &hFile);
-  void CloseCachedFile(const char *pchPath);
-  bool FileExists(const char* pchPath);
 
-  void CompletePath(FixedStringPrint &rDestination, const char* pchPath);
+  virtual bool RemoveFileAtPath(const char *pchFullPath) override
+  {
+    return SD.remove(pchFullPath);
+  }
+
+  virtual bool FileExists(const char *pchFullPath) override
+  {
+    return SD.exists(pchFullPath);
+  }
+
+  virtual File OpenFile(const char *pchFullPath, bool bWriteable, bool bTruncate)
+  {
+#if defined(ARDUINO_ARCH_ESP32)
+    // work around for bug: https://esp32.com/viewtopic.php?f=14&t=8060
+    bool bCreate = bWriteable && !FileExists(pchFullPath);
+    File hFile = SD.open(pchFullPath, bWriteable ? FILE_APPEND : FILE_READ);
+    if (hFile && bCreate)
+    {
+      // close and re-open so that file size is correct.
+      hFile.close();
+      hFile = SD.open(pchFullPath, bWriteable ? FILE_APPEND : FILE_READ);
+    }
+    return hFile;
+
+#else
+    return SD.open(pchFullPath, bWriteable ? FILE_WRITE : FILE_READ);
+#endif
+  }
 };
