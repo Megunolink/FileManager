@@ -1,27 +1,28 @@
 /* ******************************************************************
- *  SDCard.ino
+ *  SdFat.ino
  *  This example demonstrates use of a file manager that can be used
  *  to manage files on a device's SD card using MegunoLink's Device
- *  File Transfer visualizer. Program an Arduino equipped with an
- *  SD card and open the "Device file transfer.mplz" MegunoLink
- *  project file in this sketch's project folder to send and receive
- *  files to the SD card.
+ *  File Transfer visualizer and the SdFat Arduino library. Program 
+ *  an Arduino equipped with an SD card and open the 
+ *  "Device file transfer.mplz" MegunoLink project file in this sketch's
+ *  project folder to send and receive files to the SD card.
  * 
- *  Note: although SD cards are compatible with the SPI interface they
- *        don't always play nicely with other devices on the same bus.
- *        It is usually better to place the SD card on a dedicated SPI
- *        bus or use a different interface (e.g., SD MMC). 
- *
  *  You will need:
  *    - MegunoLink's library for Arduino
  *      https://www.megunolink.com/documentation/getting-started/arduino-integration/
  *    - MegunoLink's file manager library
  *      https://github.com/Megunolink/FileManager
+ *    - SdFat library for Arduino
+ *      https://github.com/greiman/SdFat
+ * 
+ *  For more information:
+ *    - MegunoLink device file transfer visualizer documentation
+ *      https://www.megunolink.com/documentation/device-file-transfer/
  *  ****************************************************************** */
 
 #include "MegunoLink.h"
 #include "CommandHandler.h"
-#include "SdFatFileManager.h"
+#include "SDFatFileManager.h"
 
 // Decodes and processes serial commands. Uses increased serial receive
 // buffer to support receiving files from MegunoLink. Set the same size

@@ -18,6 +18,10 @@
 *      https://www.megunolink.com/documentation/getting-started/arduino-integration/
 *    - MegunoLink's file manager library
 *      https://github.com/Megunolink/FileManager
+* 
+*  For more information:
+*    - MegunoLink device file transfer visualizer documentation
+*      https://www.megunolink.com/documentation/device-file-transfer/
 *  ****************************************************************** */
 
 #include "MegunoLink.h"
@@ -46,7 +50,7 @@ void InitSDCard()
   delay(100);
 #endif
   
-  const char MountPoint = "/sdcard";
+  const char* MountPoint = "/sdcard";
   const bool OneBitMode = true; 
   if (SD_MMC.begin(MountPoint, OneBitMode))
   {
