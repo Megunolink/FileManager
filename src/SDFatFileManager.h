@@ -8,15 +8,15 @@
 #include "utility/FileManager.h"
 #include "utility/FileSystemWrapper.h"
 
-class SdFat32FileManager : protected FileSystemWrapper<File32>, public MLP::FileManager
+class SdFatFileManager : protected FileSystemWrapper<FsFile>, public MLP::FileManager
 {
 private:
-  SdFat32 &m_rFileSystem;
+  SdFat &m_rFileSystem;
 
 public:
-  SdFat32FileManager(SdFat32 &rFileSystem, const char *pchRootPath = nullptr)
-    : FileSystemWrapper<File32>(pchRootPath)
-    , MLP::FileManager(*(static_cast<FileSystemWrapper<File32> *>(this)))
+  SdFatFileManager(SdFat &rFileSystem, const char *pchRootPath = nullptr)
+    : FileSystemWrapper<FsFile>(pchRootPath)
+    , MLP::FileManager(*(static_cast<FileSystemWrapper<FsFile> *>(this)))
     , m_rFileSystem(rFileSystem)
     {
     }
@@ -34,7 +34,7 @@ public:
       return m_rFileSystem.exists(pchPath);
     }
 
-    virtual File32 OpenFile(const char *pchPath, bool bWriteable, bool bCreate)
+    virtual FsFile OpenFile(const char *pchPath, bool bWriteable, bool bCreate)
     {
       oflag_t Flags;
       if (bCreate)
@@ -53,10 +53,10 @@ public:
       return m_rFileSystem.open(pchPath, Flags);
     }
 
-    virtual const char* GetFilename(File32 hFile) override 
+    virtual const char* GetFilename(FsFile hFile) override 
     { 
       static char achFilenameBuffer[13];
-      hFile.getSFN(achFilenameBuffer, sizeof(achFilenameBuffer));
+      hFile.getName(achFilenameBuffer, sizeof(achFilenameBuffer));
       return achFilenameBuffer;
     };
 

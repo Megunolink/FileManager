@@ -3,6 +3,7 @@ an SD card) using MegunoLink's device file transfer visualizer. The library impl
 the protocols required to communicate with MegunoLink and access the file system. It 
 supports:
 * SD card connected to an SPI bus on any device that supports the standard Arduino SD library,
+* SD card using the [SdFat V2 Arduino library](https://github.com/greiman/SdFat),
 * SD cards on ESP32 using the [SD MMC bus](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/sdmmc_host.html) (1 bit or 4 bit bus),
 * [LittleFS](https://github.com/espressif/arduino-esp32/tree/master/libraries/LittleFS) on ESP32 and ESP8266, which uses onboard flash to implement a file system. 
 
@@ -15,7 +16,7 @@ The Device File Manager library relies on the core [MegunoLink library for Ardui
 The MegunoLink library for Arduino can be installed using the Arduino IDE's library
 manager or [MegunoLink's Arduino integration setup](https://www.megunolink.com/documentation/install/installing-megunolink/). 
 
-You may also need to install the [SD card library for Arduino](https://www.arduino.cc/reference/en/libraries/sd/) if you are not using an Esprissif device. 
+You may also need to install the [SD card library for Arduino](https://www.arduino.cc/reference/en/libraries/sd/) if you are not using an Esprissif device, or the  [SdFat V2 Arduino library](https://github.com/greiman/SdFat) if you prefer that. 
 The ESP32 and ESP8266 include a custom SD card library so the Arduino SD library isn't needed for these devices. [LittleFS](https://github.com/espressif/arduino-esp32/tree/master/libraries/LittleFS) is part of the Arduino ESP32 core; be sure to use version 4.2.0 or higher to avoid bugs. 
 
 # Hardware Connection
@@ -31,20 +32,21 @@ The following development boards include an SD card ready to go:
 * [Thing Plus C](https://www.sparkfun.com/products/18018) &mdash; ESP32 board with SD card connected to the SPI bus
 * [ESP32 Cam](https://www.arducam.com/esp32-machine-vision-learning-guide/) &mdash; ESP32 board with SD camera connected to the SDMMC bus
 
-Accessing SD cards over the 1-bit SDMMC interface instead of the SPI bus can be around 3 times faster for reading and twice as fast for writing. The 4-bit SDMMC interface is a little faster again (about 20%). So it is worth it if the bus is available. 
+Accessing SD cards over the 1-bit SDMMC interface instead of the SPI bus and the standard Arduino SD library can be around 3 times faster for reading and twice as fast for writing. The 4-bit SDMMC interface is a little faster again (about 20%). So it is worth it if the bus is available. 
 
 The LittleFS file system uses flash memory on the device and doesn't require any additional hardware. 
 
 # Using the Library
-Check out the included examples for using device file transfer with [SD cards over an SPI bus](examples/SDCard/SDCard.ino), [SD cards over a SDMMC bus](examples/SDMMCCard/SDMMCCard.ino) and [device flash using LittleFS](examples/LittleFS/LittleFS.ino).
+Check out the included examples for using device file transfer with [SD cards over an SPI bus](examples/SDCard/SDCard.ino), [SD cards on SPI bus with SdFat library](examples/SdFat/SdFat.ino), [SD cards over a SDMMC bus](examples/SDMMCCard/SDMMCCard.ino) and [device flash using LittleFS](examples/LittleFS/LittleFS.ino).
 
-The library includes a protocol module for each supported file system interface (see table below). Include the appropriate file at the start of your Arduino sketch  (see code snippet below). 
+The library includes a protocol module for each supported file system interface (see table below). Include the appropriate file at the start of your Arduino sketch (see code snippet below). 
 
-| File system     | Include file       | Protocol module class|
-| --------------- | ------------------ | ---------------------|
-| SD, SPI bus     | SDFileManager.h    | SDFileManager        |
-| SD, SDMMC bus   | SDMMCFileManager.h | SDMMCFileManager     |
-| Flash, LittleFS | LittleFS.h         | LittleFSFileManager  |
+| File system                | Include file       | Protocol module class|
+| -------------------------- | ------------------ | ---------------------|
+| SD, SPI bus                | SDFileManager.h    | SDFileManager        |
+| SD, SPI bus, SdFat library | SdFatFileManager.h | SdFatFileManager     |
+| SD, SDMMC bus              | SDMMCFileManager.h | SDMMCFileManager     |
+| Flash, LittleFS            | LittleFS.h         | LittleFSFileManager  |
 
 These protocol modules use MegunoLink's [command handler](https://www.megunolink.com/documentation/arduino-libraries/serial-command-handler/) to decode and dispatch commands. Use `#include "CommandHandler.h"` to include the command handler at the start of your Arduino sketch. 
 
