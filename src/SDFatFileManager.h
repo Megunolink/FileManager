@@ -8,15 +8,26 @@
 #include "utility/FileManager.h"
 #include "utility/FileSystemWrapper.h"
 
-class SdFatFileManager : protected FileSystemWrapper<FsFile>, public MLP::FileManager
+#if SDFAT_FILE_TYPE == 1
+typedef File32 SdfmFile;
+#elif SDFAT_FILE_TYPE == 2
+typedef ExFile SdfmFile;
+#elif SDFAT_FILE_TYPE == 3
+typedef FsFile SdfmFile;
+#else  // SDFAT_FILE_TYPE
+#error Invalid SDFAT_FILE_TYPE
+#endif  // SDFAT_FILE_TYPE
+
+
+class SdFatFileManager : protected FileSystemWrapper<SdfmFile>, public MLP::FileManager
 {
 private:
   SdFat &m_rFileSystem;
 
 public:
   SdFatFileManager(SdFat &rFileSystem, const char *pchRootPath = nullptr)
-    : FileSystemWrapper<FsFile>(pchRootPath)
-    , MLP::FileManager(*(static_cast<FileSystemWrapper<FsFile> *>(this)))
+    : FileSystemWrapper<SdfmFile>(pchRootPath)
+    , MLP::FileManager(*(static_cast<FileSystemWrapper<SdfmFile> *>(this)))
     , m_rFileSystem(rFileSystem)
     {
     }
@@ -34,7 +45,7 @@ public:
       return m_rFileSystem.exists(pchPath);
     }
 
-    virtual FsFile OpenFile(const char *pchPath, bool bWriteable, bool bCreate)
+    virtual SdfmFile OpenFile(const char *pchPath, bool bWriteable, bool bCreate)
     {
       oflag_t Flags;
       if (bCreate)
@@ -53,7 +64,7 @@ public:
       return m_rFileSystem.open(pchPath, Flags);
     }
 
-    virtual const char* GetFilename(FsFile hFile) override 
+    virtual const char* GetFilename(SdfmFile hFile) override 
     { 
       static char achFilenameBuffer[13];
       hFile.getName(achFilenameBuffer, sizeof(achFilenameBuffer));
