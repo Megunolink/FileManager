@@ -8,6 +8,7 @@
 #include "../IFileManagerFileSystem.h"
 #include "FixedStringBuffer.h"
 #include "Formatting.h"
+#include "../FileManagerConfiguration.h"
 
 template <typename TFile>
 class FileSystemWrapper : public IFileManagerFileSystem
@@ -28,14 +29,11 @@ protected:
   // Maximum time to keep the cached file open if it isn't being used.
   static const int m_nCacheTimeout = 3000; // ms.
 
-  // Maximum number of characters for root path (including null terminator).
-  static const int m_nMaxRootPath = 9;
-
   // Maximum length of file path combined with root path.
-  static const int m_nMaxPathLength = m_nMaxRootPath + 15;
+  static const int m_nMaxPathLength = NFileManager::MaxRootPath + NFileManager::MaxFilenameLength;
 
   // Root path for the folder we manage.
-  char m_achRootPath[m_nMaxRootPath];
+  char m_achRootPath[NFileManager::MaxRootPath];
 
 public:
   FileSystemWrapper(const char *pchRootPath = nullptr)

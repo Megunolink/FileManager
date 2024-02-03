@@ -66,7 +66,7 @@ public:
 
     virtual const char* GetFilename(SdfmFile hFile) override 
     { 
-      static char achFilenameBuffer[13];
+      static char achFilenameBuffer[NFileManager::MaxFilenameLength];
       hFile.getName(achFilenameBuffer, sizeof(achFilenameBuffer));
       return achFilenameBuffer;
     };

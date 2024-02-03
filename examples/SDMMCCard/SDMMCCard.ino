@@ -51,7 +51,7 @@ void InitSDCard()
 #endif
   
   const char* MountPoint = "/sdcard";
-  const bool OneBitMode = true; 
+  const bool OneBitMode = true; // true => 1 bit mode; false => 4 bit mode. 
   if (SD_MMC.begin(MountPoint, OneBitMode))
   {
     uint8_t uCardType = SD_MMC.cardType();
@@ -75,6 +75,13 @@ void setup()
   Serial.begin(500000);
   Serial.println(F("SDMMC Card MegunoLink File Manager Tester"));
   Serial.println(F("========================================="));
+
+  // Enable pull-ups for SD card pins
+  pinMode(2, INPUT_PULLUP);
+  pinMode(4, INPUT_PULLUP);
+  pinMode(12, INPUT_PULLUP);
+  pinMode(13, INPUT_PULLUP);
+  pinMode(15, INPUT_PULLUP);
 
   // Register the file manager command module
   // with the command handler. 
