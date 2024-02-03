@@ -98,10 +98,16 @@ The same buffer size **must** be set in the device file transfer visualizer in M
 
 ![Set serial buffer size](documentation/images/ConfigureDeviceFileTransfer.png)
 
-
 # Configuration
-Use the `SetOptions` method to configure the file manager:
+
+## File manager options
+
+Several file manager options can be configured at run-time. Use the `SetOptions` method to configure the file manager:
 * `FileManager.SetOptions(FileManagerOptions::DisableDeletion)` to block commands that delete files or clear all files. 
 * `FileManager.SetOptions(FileManagerOptions::AllowFileDeletion)` to allow individual files to be deleted but prevent clearing all files.
 * `FileManager.SetOptions(FileManagerOptions::AllowClearCard)` to allow clearing the card of all files but prevent deletion of individual files. 
 * `FileManager.SetOptions(FileManagerOptions::AllowDeletion)` to allow both deleting individual files and clearing the card of all files. 
+
+## Path length
+
+Windows permits files and paths to contain more than 200 characters, however allowing for such long filenames could waste a substantial amount of memory on the embedded device. For this reason, MegunoLink's file transfer visualizer uses short filename equivalents when sending files to the embedded device. The embedded device may send files using long file names to MegunoLink, however. The maximum length of paths used by the file manager in the library may be configured in `FileManager\src\FileManagerConfiguration.h`. 
